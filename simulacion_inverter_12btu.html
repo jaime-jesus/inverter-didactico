@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulación 220V~ y Análisis de Fallas — Inverter 12,000 BTU</title>
+  <style>
+    :root,
+    :root[data-theme="dark"] {
+      --background: #0b1120;
+      --card: #111827;
+      --card-2: #162033;
+      --card-border: #1e293b;
+      --border: #334155;
+      --foreground: #f1f5f9;
+      --muted-foreground: #94a3b8;
+      --primary: #3b82f6;
+      --primary-foreground: #ffffff;
+      --error: #f87171;
+      --error-bg: rgba(248, 113, 113, 0.14);
+      --warning: #fbbf24;
+      --warning-bg: rgba(251, 191, 36, 0.14);
+      --success: #4ade80;
+      --success-bg: rgba(74, 222, 128, 0.14);
+      --chart-1: #38bdf8;
+      --chart-2: #a78bfa;
+      --chart-3: #2dd4bf;
+      --chart-4: #60a5fa;
+      --chart-5: #f472b6;
+    }
+
+    :root[data-theme="light"] {
+      --background: #f1f5f9;
+      --card: #ffffff;
+      --card-2: #f8fafc;
+      --card-border: #e2e8f0;
+      --border: #cbd5e1;
+      --foreground: #0f172a;
+      --muted-foreground: #475569;
+      --primary: #2563eb;
+      --primary-foreground: #ffffff;
+      --error: #dc2626;
+      --error-bg: rgba(220, 38, 38, 0.10);
+      --warning: #d97706;
+      --warning-bg: rgba(217, 119, 6, 0.10);
+      --success: #16a34a;
+      --success-bg: rgba(22, 163, 74, 0.10);
+      --chart-1: #0284c7;
+      --chart-2: #7c3aed;
+      --chart-3: #0d9488;
+      --chart-4: #2563eb;
+      --chart-5: #db2777;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 18px;
+      background-color: var(--background);
+      color: var(--foreground);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .container {
+      max-width: 1220px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .topbar .subtitle {
+      font-size: 12px;
+      color: var(--muted-foreground);
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 11px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background-color: var(--card);
+      color: var(--foreground);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover { border-color: var(--primary); }
+    .btn.primary {
+      background-color: var(--primary);
+      border-color: var(--primary);
+      color: var(--primary-foreground);
+    }
+    .btn.danger {
+      background-color: var(--error-bg);
+      border-color: var(--error);
+      color: var(--error);
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Controles de Simulación y Fallas */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 920px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background-color: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .panel-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted-foreground);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .steps-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .step-pill {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background-color: var(--card-2);
+      color: var(--muted-foreground);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .step-pill.active {
+      border-color: var(--primary);
+      background-color: var(--primary);
+      color: var(--primary-foreground);
+    }
+
+    .step-pill.done {
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    select.fault-select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background-color: var(--card-2);
+      color: var(--foreground);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+
+    select.fault-select:focus {
+      border-color: var(--primary);
+    }
+
+    /* Layout Principal: Diagrama + Multímetro/Análisis */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.55fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    @media (max-width: 1020px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .diagram-card {
+      background-color: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      overflow: hidden;
+      padding: 8px;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Multímetro Virtual */
+    .meter-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .meter-box {
+      background-color: var(--card-2);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .meter-name {
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+
+    .meter-val {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 15px;
+      font-weight: 700;
+      margin-top: 2px;
+      color: var(--foreground);
+    }
+
+    .meter-val.ok { color: var(--success); }
+    .meter-val.warn { color: var(--warning); }
+    .meter-val.err { color: var(--error); }
+    .meter-val.off { color: var(--muted-foreground); }
+
+    .analysis-box {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .status-banner {
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-banner.ok { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
+    .status-banner.warn { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
+    .status-banner.err { background: var(--error-bg); color: var(--error); border: 1px solid var(--error); }
+    .status-banner.off { background: var(--card-2); color: var(--muted-foreground); border: 1px solid var(--border); }
+
+    .analysis-section {
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+      background-color: var(--card-2);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 9px 11px;
+    }
+
+    .analysis-section strong {
+      color: var(--foreground);
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    /* Animaciones SVG */
+    .wire-off { opacity: 0.22; }
+    .wire-on { opacity: 1; }
+    .wire-flow {
+      stroke-dasharray: 7 4;
+      animation: dashFlow 1.1s linear infinite;
+    }
+    .wire-flow-fast {
+      stroke-dasharray: 5 3;
+      animation: dashFlow 0.55s linear infinite;
+    }
+    @keyframes dashFlow {
+      to { stroke-dashoffset: -22; }
+    }
+
+    .block-off { opacity: 0.35; }
+    .block-on { opacity: 1; }
+    .block-fault rect.box-bg {
+      stroke: var(--error) !important;
+      stroke-width: 2.6 !important;
+      animation: faultPulse 1.1s ease-in-out infinite;
+    }
+    @keyframes faultPulse {
+      0%, 100% { filter: drop-shadow(0 0 2px var(--error)); }
+      50% { filter: drop-shadow(0 0 8px var(--error)); }
+    }
+
+    .spin-slow {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: spin 2.2s linear infinite;
+    }
+    .spin-fast {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Encabezado -->
+    <div class="topbar">
+      <div>
+        <h1>Simulador Eléctrico y Análisis de Fallas — Mini-Split Inverter 12,000 BTU (220V~)</h1>
+        <div class="subtitle">Observa qué ocurre paso a paso al conectar 220V AC y cómo diagnosticar cada falla con multímetro</div>
+      </div>
+      <div class="btn-row">
+        <a href="diagrama_inverter_12btu.html" class="btn">📐 Ver Esquema Base</a>
+        <button id="theme-toggle" class="btn" type="button">☀️ Modo Claro</button>
+      </div>
+    </div>
+
+    <!-- Controles superiores -->
+    <div class="controls-grid">
+      <div class="panel">
+        <div class="panel-label">
+          <span>1. Secuencia de Encendido (Conexión a 220V~)</span>
+          <span id="step-counter" style="font-family:monospace;">Paso 0 / 5</span>
+        </div>
+        <div class="steps-bar" id="steps-bar">
+          <button class="step-pill active" data-step="0">0. Sin Energía</button>
+          <button class="step-pill" data-step="1">1. Conectar 220V (Stand-by)</button>
+          <button class="step-pill" data-step="2">2. Orden Encendido</button>
+          <button class="step-pill" data-step="3">3. Comunicación (S)</button>
+          <button class="step-pill" data-step="4">4. Rampa IPM (U-V-W)</button>
+          <button class="step-pill" data-step="5">5. Régimen Inverter</button>
+        </div>
+        <div class="btn-row">
+          <button id="btn-prev" class="btn">◀ Anterior</button>
+          <button id="btn-play" class="btn primary">▶ Simular Arranque Automático</button>
+          <button id="btn-next" class="btn">Siguiente ▶</button>
+          <button id="btn-reset" class="btn">↺ Reiniciar (0V)</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">
+          <span>2. Inyección de Fallas Reales (Modo Diagnóstico)</span>
+          <span style="color:var(--warning);">Simula averías comunes</span>
+        </div>
+        <select id="fault-select" class="fault-select">
+          <option value="none">✅ Operación Normal (Sin Fallas — Seguir Secuencia 0–5)</option>
+          <option value="comm_open">❌ Falla 1: Error Comunicación (E1/E6) — Cable S abierto / Optoacoplador</option>
+          <option value="ext_dead">❌ Falla 2: Placa Exterior Muerta — Fusible 20A / Varistor MOV en corto</option>
+          <option value="ptc_relay">❌ Falla 3: PTC de Precarga abierta o Relé de Precarga no cierra</option>
+          <option value="ipm_short">❌ Falla 4: Módulo IPM en Corto (IGBTs quemados — Salta Breaker / FO)</option>
+          <option value="ntc_fault">❌ Falla 5: Sensor NTC alterado o abierto (Pozo / Descarga 50kΩ)</option>
+          <option value="comp_fault">❌ Falla 6: Compresor aterrizado a chasis o bobinado abierto</option>
+          <option value="fan_fault">❌ Falla 7: Motor Ventilador BLDC sin señal de retorno (FG/PG)</option>
+          <option value="low_volt">⚠️ Falla 8: Bajo Voltaje de Red (<180V AC) o sin Tierra Física (PE)</option>
+        </select>
+        <div style="margin-top:8px; font-size:12px; color:var(--muted-foreground);">
+          Al elegir una falla, el simulador evalúa automáticamente en qué etapa se detiene el equipo y qué marca el multímetro.
+        </div>
+      </div>
+    </div>
+
+    <!-- Cuerpo Principal: Diagrama Vivo + Multímetro y Análisis -->
+    <div class="main-grid">
+      <!-- Diagrama Animado -->
+      <div class="diagram-card">
+        <svg viewBox="0 0 880 390" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr-err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--error)" />
+            </marker>
+            <marker id="arr-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--warning)" />
+            </marker>
+            <marker id="arr-ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--success)" />
+            </marker>
+          </defs>
+
+          <!-- Zonas -->
+          <rect x="8" y="8" width="248" height="374" rx="8" fill="var(--background)" fill-opacity="0.55" stroke="var(--border)" stroke-dasharray="5 3" />
+          <text x="18" y="25" font-size="11" font-weight="700" fill="var(--chart-1)">UNIDAD INTERIOR (EVAPORADORA)</text>
+
+          <rect x="268" y="42" width="96" height="252" rx="8" fill="var(--background)" fill-opacity="0.65" stroke="var(--border)" />
+          <text x="316" y="58" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--foreground)">BORNERA</text>
+          <text x="316" y="70" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">1 - 2 - S - PE</text>
+
+          <rect x="376" y="8" width="496" height="374" rx="8" fill="var(--background)" fill-opacity="0.55" stroke="var(--border)" stroke-dasharray="5 3" />
+          <text x="388" y="25" font-size="11" font-weight="700" fill="var(--chart-2)">UNIDAD EXTERIOR (CONDENSADORA)</text>
+
+          <!-- CABLES ANIMADOS -->
+          <!-- Alimentación 220V AC (Breaker -> Bornera -> PCBs) -->
+          <g id="w-ac-in" class="wire-off">
+            <path d="M 196 322 L 196 310 L 260 310 L 260 98 L 280 98" fill="none" stroke="var(--error)" stroke-width="2.2" />
+            <path d="M 212 322 L 212 315 L 264 315 L 264 146 L 280 146" fill="none" stroke="var(--chart-1)" stroke-width="2.2" />
+            <path d="M 244 340 L 272 340 L 272 242 L 280 242" fill="none" stroke="var(--success)" stroke-width="1.8" stroke-dasharray="4 2" />
+            <path d="M 280 98 L 194 98" fill="none" stroke="var(--error)" stroke-width="2.2" />
+            <path d="M 280 146 L 194 146" fill="none" stroke="var(--chart-1)" stroke-width="2.2" />
+          </g>
+
+          <g id="w-ac-ext" class="wire-off">
+            <path d="M 352 98 L 392 98" fill="none" stroke="var(--error)" stroke-width="2.4" marker-end="url(#arr-err)" />
+            <path d="M 352 146 L 392 146" fill="none" stroke="var(--chart-1)" stroke-width="2.4" />
+            <path d="M 352 242 L 370 242 L 370 335 L 392 335" fill="none" stroke="var(--success)" stroke-width="1.8" stroke-dasharray="4 2" />
+          </g>
+
+          <!-- Bus DC +310V -->
+          <g id="w-dcbus" class="wire-off">
+            <path d="M 564 74 L 614 74" fill="none" stroke="var(--error)" stroke-width="2.6" marker-end="url(#arr-err)" />
+            <text x="589" y="66" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--error)">+310V</text>
+            <path d="M 564 96 L 614 96" fill="none" stroke="var(--muted-foreground)" stroke-width="2.2" />
+            <text x="589" y="108" text-anchor="middle" font-size="9" font-weight="700" fill="var(--muted-foreground)">GND DC</text>
+          </g>
+
+          <!-- Línea Comunicación S -->
+          <g id="w-comm" class="wire-off">
+            <path d="M 280 194 L 250 194 L 250 166 L 194 166" fill="none" stroke="var(--warning)" stroke-width="2.2" />
+            <path d="M 352 194 L 596 194 L 596 126 L 614 126" fill="none" stroke="var(--warning)" stroke-width="2.2" marker-end="url(#arr-warn)" />
+            <text x="480" y="188" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--warning)">Señal Serial S (Pulsos DC)</text>
+          </g>
+
+          <!-- Trifásico IPM -> Compresor -->
+          <g id="w-uvw" class="wire-off">
+            <path d="M 754 70 L 784 70" fill="none" stroke="var(--error)" stroke-width="2.5" />
+            <text x="769" y="64" text-anchor="middle" font-size="10" font-weight="700" fill="var(--error)">U</text>
+            <path d="M 754 96 L 784 96" fill="none" stroke="var(--warning)" stroke-width="2.5" />
+            <text x="769" y="90" text-anchor="middle" font-size="10" font-weight="700" fill="var(--warning)">V</text>
+            <path d="M 754 122 L 784 122" fill="none" stroke="var(--chart-1)" stroke-width="2.5" />
+            <text x="769" y="116" text-anchor="middle" font-size="10" font-weight="700" fill="var(--chart-1)">W</text>
+          </g>
+
+          <!-- Cargas Interior -->
+          <g id="w-indoor-loads" class="wire-off">
+            <path d="M 62 178 L 62 204" fill="none" stroke="var(--chart-4)" stroke-width="2" />
+            <path d="M 106 178 L 106 191 L 190 191 L 190 204" fill="none" stroke="var(--chart-4)" stroke-width="2" />
+            <path d="M 20 162 L 13 162 L 13 280 L 28 280" fill="none" stroke="var(--chart-5)" stroke-width="1.6" />
+            <path d="M 134 178 L 134 280 L 144 280" fill="none" stroke="var(--chart-5)" stroke-width="1.6" />
+          </g>
+
+          <!-- Cargas Exterior -->
+          <g id="w-ext-loads" class="wire-off">
+            <path d="M 684 178 L 684 202" fill="none" stroke="var(--chart-3)" stroke-width="2" />
+            <path d="M 468 202 L 798 202" fill="none" stroke="var(--chart-3)" stroke-width="2" />
+            <path d="M 468 202 L 468 224" fill="none" stroke="var(--chart-3)" stroke-width="2" />
+            <path d="M 624 202 L 624 224" fill="none" stroke="var(--chart-3)" stroke-width="2" />
+            <path d="M 798 202 L 798 224" fill="none" stroke="var(--chart-3)" stroke-width="2" />
+            <path d="M 716 178 L 716 306" fill="none" stroke="var(--chart-5)" stroke-width="1.6" stroke-dasharray="3 2" />
+          </g>
+
+          <!-- BORNERA -->
+          <g id="blk-bornera" class="block-off">
+            <rect class="box-bg" x="280" y="82" width="72" height="32" rx="4" fill="var(--card-2)" stroke="var(--error)" stroke-width="1.5" />
+            <text x="316" y="96" text-anchor="middle" font-size="11" font-weight="700" fill="var(--foreground)">1 (L)</text>
+            <text x="316" y="109" text-anchor="middle" font-size="9" fill="var(--muted-foreground)">220V Línea</text>
+
+            <rect class="box-bg" x="280" y="130" width="72" height="32" rx="4" fill="var(--card-2)" stroke="var(--chart-1)" stroke-width="1.5" />
+            <text x="316" y="144" text-anchor="middle" font-size="11" font-weight="700" fill="var(--foreground)">2 (N/L2)</text>
+            <text x="316" y="157" text-anchor="middle" font-size="9" fill="var(--muted-foreground)">Neutro/L2</text>
+
+            <rect class="box-bg" x="280" y="178" width="72" height="32" rx="4" fill="var(--card-2)" stroke="var(--warning)" stroke-width="1.5" />
+            <text x="316" y="192" text-anchor="middle" font-size="11" font-weight="700" fill="var(--foreground)">S (3)</text>
+            <text x="316" y="205" text-anchor="middle" font-size="9" fill="var(--muted-foreground)">Señal Com.</text>
+
+            <rect class="box-bg" x="280" y="226" width="72" height="32" rx="4" fill="var(--card-2)" stroke="var(--success)" stroke-width="1.5" />
+            <text x="316" y="240" text-anchor="middle" font-size="11" font-weight="700" fill="var(--foreground)">⏚ (PE)</text>
+            <text x="316" y="253" text-anchor="middle" font-size="9" fill="var(--muted-foreground)">Tierra</text>
+          </g>
+
+          <!-- UNIDAD INTERIOR -->
+          <g id="blk-breaker" class="block-off">
+            <rect class="box-bg" x="18" y="322" width="226" height="44" rx="6" fill="var(--card-2)" stroke="var(--error)" stroke-width="1.6" />
+            <text x="131" y="340" text-anchor="middle" font-size="11" font-weight="700" fill="var(--foreground)">⚡ Breaker 20A (220V~)</text>
+            <text id="lbl-breaker" x="131" y="356" text-anchor="middle" font-size="10" fill="var(--muted-foreground)">DESCONECTADO (OFF)</text>
+          </g>
+
+          <g id="blk-pcb-in" class="block-off">
+            <rect class="box-bg" x="20" y="42" width="174" height="136" rx="6" fill="var(--card-2)" stroke="var(--chart-1)" stroke-width="1.6" />
+            <text x="107" y="60" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--foreground)">PCB Interior</text>
+            <line x1="28" y1="68" x2="186" y2="68" stroke="var(--border)" />
+            <text x="30" y="86" font-size="10" fill="var(--foreground)">• Fusible 3.15A + MOV</text>
+            <text x="30" y="104" font-size="10" fill="var(--foreground)">• SMPS: 12V y 5V DC</text>
+            <text x="30" y="122" font-size="10" fill="var(--foreground)">• MCU + Opto TX/RX</text>
+            <text id="lbl-pcb-in" x="107" y="164" text-anchor="middle" font-size="10" font-weight="700" fill="var(--muted-foreground)">APAGADA</text>
+          </g>
+
+          <g id="blk-fan-in" class="block-off">
+            <rect class="box-bg" x="20" y="204" width="106" height="48" rx="5" fill="var(--card-2)" stroke="var(--chart-4)" stroke-width="1.5" />
+            <text x="73" y="223" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">Turbina Int.</text>
+            <text id="lbl-fan-in" x="73" y="240" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">0 RPM</text>
+          </g>
+
+          <g id="blk-swing" class="block-off">
+            <rect class="box-bg" x="136" y="204" width="108" height="48" rx="5" fill="var(--card-2)" stroke="var(--chart-4)" stroke-width="1.5" />
+            <text x="190" y="223" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">Motor Swing</text>
+            <text id="lbl-swing" x="190" y="240" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">Cerrado</text>
+          </g>
+
+          <g id="blk-display" class="block-off">
+            <rect class="box-bg" x="28" y="260" width="98" height="42" rx="5" fill="var(--card-2)" stroke="var(--chart-5)" stroke-width="1.4" />
+            <text x="77" y="278" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">Display / IR</text>
+            <text id="lbl-display" x="77" y="293" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">OFF</text>
+          </g>
+
+          <g id="blk-ntc-in" class="block-off">
+            <rect class="box-bg" x="144" y="260" width="100" height="42" rx="5" fill="var(--card-2)" stroke="var(--chart-5)" stroke-width="1.4" />
+            <text x="194" y="278" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">NTC Interior</text>
+            <text id="lbl-ntc-in" x="194" y="293" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">10 kΩ</text>
+          </g>
+
+          <!-- UNIDAD EXTERIOR -->
+          <g id="blk-power-ext" class="block-off">
+            <rect class="box-bg" x="392" y="42" width="172" height="136" rx="6" fill="var(--card-2)" stroke="var(--error)" stroke-width="1.6" />
+            <text x="478" y="60" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--foreground)">Rectificador / PFC</text>
+            <line x1="400" y1="68" x2="556" y2="68" stroke="var(--border)" />
+            <text x="402" y="86" font-size="10" fill="var(--foreground)">• Fusible 20A + EMI</text>
+            <text id="lbl-ptc" x="402" y="104" font-size="10" fill="var(--foreground)">• Precarga: PTC / Relé</text>
+            <text x="402" y="122" font-size="10" fill="var(--foreground)">• Puente + Bobina PFC</text>
+            <text id="lbl-dcbus" x="478" y="164" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--muted-foreground)">Bus DC: 0V</text>
+          </g>
+
+          <g id="blk-ipm" class="block-off">
+            <rect class="box-bg" x="614" y="42" width="140" height="136" rx="6" fill="var(--card-2)" stroke="var(--chart-2)" stroke-width="1.6" />
+            <text x="684" y="60" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--foreground)">PCB Ext + IPM</text>
+            <line x1="622" y1="68" x2="746" y2="68" stroke="var(--border)" />
+            <text x="624" y="86" font-size="10" fill="var(--foreground)">• SMPS: 15V / 12V / 5V</text>
+            <text x="624" y="104" font-size="10" fill="var(--warning)">• MCU + Opto (S)</text>
+            <text x="624" y="122" font-size="10" font-weight="700" fill="var(--chart-2)">• IPM (6 IGBTs)</text>
+            <text id="lbl-ipm" x="684" y="164" text-anchor="middle" font-size="10" font-weight="700" fill="var(--muted-foreground)">INACTIVO</text>
+          </g>
+
+          <g id="blk-comp" class="block-off">
+            <rect class="box-bg" x="784" y="42" width="78" height="136" rx="8" fill="var(--card-2)" stroke="var(--chart-2)" stroke-width="1.8" />
+            <g id="comp-rotor">
+              <circle cx="823" cy="92" r="24" fill="var(--background)" stroke="var(--chart-2)" stroke-width="1.8" stroke-dasharray="10 5" />
+            </g>
+            <text x="823" y="96" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--foreground)">COMP</text>
+            <text id="lbl-comp" x="823" y="142" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--muted-foreground)">0 Hz</text>
+            <text x="823" y="160" text-anchor="middle" font-size="9" fill="var(--muted-foreground)">BLDC 3~</text>
+          </g>
+
+          <g id="blk-fan-ext" class="block-off">
+            <rect class="box-bg" x="392" y="224" width="144" height="52" rx="5" fill="var(--card-2)" stroke="var(--chart-3)" stroke-width="1.4" />
+            <text x="464" y="244" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">Ventilador Exterior</text>
+            <text id="lbl-fan-ext" x="464" y="261" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">0 RPM (BLDC)</text>
+          </g>
+
+          <g id="blk-4way" class="block-off">
+            <rect class="box-bg" x="550" y="224" width="146" height="52" rx="5" fill="var(--card-2)" stroke="var(--chart-3)" stroke-width="1.4" />
+            <text x="623" y="244" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">Válvula 4 Vías</text>
+            <text id="lbl-4way" x="623" y="261" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">Modo Frío (0V)</text>
+          </g>
+
+          <g id="blk-eev" class="block-off">
+            <rect class="box-bg" x="710" y="224" width="152" height="52" rx="5" fill="var(--card-2)" stroke="var(--chart-3)" stroke-width="1.4" />
+            <text x="786" y="244" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">Válvula EEV (12V)</text>
+            <text id="lbl-eev" x="786" y="261" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">En espera</text>
+          </g>
+
+          <g id="blk-ground" class="block-off">
+            <rect class="box-bg" x="392" y="306" width="144" height="48" rx="5" fill="var(--card-2)" stroke="var(--success)" stroke-width="1.4" />
+            <text x="464" y="326" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">⏚ Tierra Física (PE)</text>
+            <text id="lbl-ground" x="464" y="342" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">Filtro EMI conectado</text>
+          </g>
+
+          <g id="blk-ntc-ext" class="block-off">
+            <rect class="box-bg" x="550" y="306" width="312" height="48" rx="5" fill="var(--card-2)" stroke="var(--chart-5)" stroke-width="1.4" />
+            <text x="706" y="325" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--foreground)">NTC Exteriores (Amb / Serpentín / Descarga 50kΩ)</text>
+            <text id="lbl-ntc-ext" x="706" y="342" text-anchor="middle" font-size="9.5" fill="var(--muted-foreground)">En rango normal</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Panel Derecho: Multímetro + Análisis -->
+      <div class="panel">
+        <div class="panel-label">
+          <span>3. Multímetro Virtual (Lecturas en Vivo)</span>
+          <span id="badge-mode" style="color:var(--success);">MODO NORMAL</span>
+        </div>
+
+        <div class="meter-grid">
+          <div class="meter-box">
+            <div class="meter-name">Bornera 1(L) – 2(N)</div>
+            <div id="m-ac" class="meter-val off">0 V AC</div>
+          </div>
+          <div class="meter-box">
+            <div class="meter-name">Señal 2(N) – S (Com.)</div>
+            <div id="m-comm" class="meter-val off">0 V DC</div>
+          </div>
+          <div class="meter-box">
+            <div class="meter-name">Bus DC (Capacitores)</div>
+            <div id="m-dcbus" class="meter-val off">0 V DC</div>
+          </div>
+          <div class="meter-box">
+            <div class="meter-name">Fuente SMPS Ext.</div>
+            <div id="m-smps" class="meter-val off">0V / 0V</div>
+          </div>
+          <div class="meter-box">
+            <div class="meter-name">Salida IPM (U-V-W)</div>
+            <div id="m-uvw" class="meter-val off">0 Hz / 0V</div>
+          </div>
+          <div class="meter-box">
+            <div class="meter-name">Consumo Total (Pinza)</div>
+            <div id="m-amp" class="meter-val off">0.0 A</div>
+          </div>
+        </div>
+
+        <div class="analysis-box">
+          <div id="status-banner" class="status-banner off">
+            <span id="status-title">Estado: Sin Energía (Breaker OFF)</span>
+            <span id="status-code" style="font-family:monospace;">OFF</span>
+          </div>
+
+          <div class="analysis-section">
+            <strong>¿Qué está ocurriendo en el circuito?</strong>
+            <span id="txt-what">El equipo está desconectado de la red de 220V~. Los capacitores del Bus DC deben estar descargados (&lt;5V DC antes de tocar la placa).</span>
+          </div>
+
+          <div class="analysis-section">
+            <strong>Diagnóstico / Prueba con Multímetro:</strong>
+            <span id="txt-diag">Antes de energizar, verifica continuidad de tierra física (PE), resistencia equilibrada en bornes U-V-W del compresor (1–3 Ω) y ausencia de corto en bornera 1–2.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STEPS = [
+      {
+        title: "Paso 0: Sin Energía (Breaker 20A en OFF)",
+        code: "OFF",
+        tone: "off",
+        what: "No hay voltaje en la bornera 1(L)–2(N). Las fuentes SMPS de ambas tarjetas están apagadas y los capacitores electrolíticos del Bus DC están descargados.",
+        diag: "Modo seguro para mantenimiento. Antes de energizar por primera vez, mide en escala de ohmios entre 1 y 2 (no debe haber cortocircuito directo) y comprueba aislamiento del compresor.",
+        meters: {
+          ac: ["0 V AC", "off"],
+          comm: ["0 V DC", "off"],
+          dcbus: ["0 V DC", "off"],
+          smps: ["0V / 0V", "off"],
+          uvw: ["0 Hz / 0V", "off"],
+          amp: ["0.0 A", "off"]
+        },
+        labels: {
+          breaker: "DESCONECTADO (OFF)",
+          pcbIn: "APAGADA",
+          fanIn: "0 RPM",
+          swing: "Cerrado",
+          display: "OFF",
+          ntcIn: "10 kΩ (25°C)",
+          ptc: "• Precarga: Abierta",
+          dcbus: "Bus DC: 0V",
+          ipm: "INACTIVO",
+          comp: "0 Hz",
+          fanExt: "0 RPM (BLDC)",
+          way4: "Modo Frío (0V)",
+          eev: "En espera",
+          ground: "Conectada (0V)",
+          ntcExt: "En rango (25°C)"
+        },
+        activeBlocks: [],
+        activeWires: [],
+        flowWires: [],
+        spinIn: false,
+        spinComp: ""
+      },
+      {
+        title: "Paso 1: Conexión a 220V~ (Modo Stand-by)",
+        code: "STAND-BY",
+        tone: "warn",
+        what: "Al subir el breaker llegan 220V AC a la bornera 1–2 de ambas unidades. En la evaporadora, la SMPS genera 12V y 5V DC (pitido/destello del Display). En la condensadora, la corriente pasa por la resistencia PTC (relé abierto) cargando suavemente los capacitores del Bus DC hasta ~310V DC, y arranca la SMPS exterior (15V/12V/5V DC).",
+        diag: "Con multímetro en AC debes medir ~220V en 1–2. En DC sobre los capacitores grandes de la placa exterior debes medir ~310V DC (220V × 1.414). El compresor aún no recibe pulsos.",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["~24V fija (reposo)", "warn"],
+          dcbus: ["310 V DC (PTC)", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["0 Hz / 0V", "off"],
+          amp: ["0.08 A", "ok"]
+        },
+        labels: {
+          breaker: "ON — 220V AC Activo",
+          pcbIn: "SMPS OK (12V/5V)",
+          fanIn: "0 RPM (Espera)",
+          swing: "Cerrado",
+          display: "STAND-BY (IR)",
+          ntcIn: "10 kΩ (25°C)",
+          ptc: "• Precarga: Vía PTC",
+          dcbus: "Bus DC: ~310V",
+          ipm: "SMPS OK (Espera)",
+          comp: "0 Hz (Listo)",
+          fanExt: "0 RPM (Espera)",
+          way4: "0V (Reposo)",
+          eev: "Reset inicial",
+          ground: "Descarga EMI OK",
+          ntcExt: "Lectura OK"
+        },
+        activeBlocks: ["breaker", "bornera", "pcbIn", "display", "ntcIn", "powerExt", "ipm", "ntcExt", "ground", "eev"],
+        activeWires: ["acIn", "acExt", "dcbus"],
+        flowWires: ["acIn", "acExt"],
+        spinIn: false,
+        spinComp: ""
+      },
+      {
+        title: "Paso 2: Orden de Encendido (Control Remoto ON — Frío 22°C)",
+        code: "ON / EVAP",
+        tone: "ok",
+        what: "El receptor IR recibe la orden. El MCU interior verifica los sensores NTC (ambiente y pozo), abre el deflector (Motor Swing) y arranca la turbina evaporadora. Prepara la trama serial para enviarla por el borne S.",
+        diag: "El Display muestra 22°C. Si los sensores NTC están en corto o abiertos, la evaporadora se detiene aquí mismo mostrando código de sensor (E2/E3) antes de comunicar con el exterior.",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["Iniciando TX...", "warn"],
+          dcbus: ["310 V DC", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["0 Hz / 0V", "off"],
+          amp: ["0.25 A", "ok"]
+        },
+        labels: {
+          breaker: "ON — 220V AC Activo",
+          pcbIn: "LEYENDO NTC / TX",
+          fanIn: "850 RPM (Activa)",
+          swing: "Abierto (Oscila)",
+          display: "22°C FRÍO",
+          ntcIn: "Amb: 27°C OK",
+          ptc: "• Precarga: Vía PTC",
+          dcbus: "Bus DC: ~310V",
+          ipm: "Esperando S...",
+          comp: "0 Hz",
+          fanExt: "0 RPM",
+          way4: "Modo Frío (0V)",
+          eev: "Posicionando",
+          ground: "Descarga EMI OK",
+          ntcExt: "Lectura OK"
+        },
+        activeBlocks: ["breaker", "bornera", "pcbIn", "fanIn", "swing", "display", "ntcIn", "powerExt", "ipm", "ntcExt", "ground", "eev"],
+        activeWires: ["acIn", "acExt", "dcbus", "indoorLoads"],
+        flowWires: ["acIn", "acExt", "indoorLoads"],
+        spinIn: true,
+        spinComp: ""
+      },
+      {
+        title: "Paso 3: Handshake de Comunicación (Línea S) y Cierre de Relé",
+        code: "COM S OK",
+        tone: "ok",
+        what: "El optoacoplador interior envía pulsos digitales por el cable S usando el borne 2(N) como referencia. La placa exterior responde validando sus NTCs y el Bus DC; luego cierra el Relé de Precarga (puentea la PTC para soportar alta corriente sin caídas).",
+        diag: "Con multímetro en V DC entre 2(N) y S debes ver un voltaje oscilante constante (ej. saltando entre ~5V y ~24V/45V DC). Si queda fijo sin oscilar, no hay comunicación.",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["5–38V DC (Oscila)", "ok"],
+          dcbus: ["312 V DC (Relé)", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["0 Hz (Pre-arranque)", "warn"],
+          amp: ["0.35 A", "ok"]
+        },
+        labels: {
+          breaker: "ON — 220V AC Activo",
+          pcbIn: "COMUNICANDO (S)",
+          fanIn: "950 RPM",
+          swing: "Abierto",
+          display: "22°C FRÍO",
+          ntcIn: "Amb: 27°C OK",
+          ptc: "• Relé Precarga: ON",
+          dcbus: "Bus DC: 312V (Relé)",
+          ipm: "COM S OK / Relé ON",
+          comp: "Alineando rotor",
+          fanExt: "Arrancando...",
+          way4: "Modo Frío (0V)",
+          eev: "Apertura inicial",
+          ground: "Descarga EMI OK",
+          ntcExt: "Desc: 32°C OK"
+        },
+        activeBlocks: ["breaker", "bornera", "pcbIn", "fanIn", "swing", "display", "ntcIn", "powerExt", "ipm", "ntcExt", "ground", "eev", "fanExt", "way4"],
+        activeWires: ["acIn", "acExt", "dcbus", "comm", "indoorLoads", "extLoads"],
+        flowWires: ["acIn", "acExt", "comm", "indoorLoads"],
+        spinIn: true,
+        spinComp: ""
+      },
+      {
+        title: "Paso 4: Arranque Ventilador Exterior y Rampa IPM (U-V-W)",
+        code: "RAMPA IPM",
+        tone: "ok",
+        what: "Arranca el ventilador del condensador. El circuito PFC estabiliza/eleva el Bus DC (~310–350V DC) y el MCU exterior envía 6 señales PWM al Módulo IPM (alimentado a 15V DC). El IPM sintetiza 3 fases (U, V, W) arrancando el compresor suavemente a ~20–35 Hz sin pico de corriente.",
+        diag: "La pinza amperimétrica sube progresivamente (1.2A → 3.5A) sin golpe de arranque. En U-V, V-W y U-W el voltaje AC PWM debe ser equilibrado entre las 3 fases.",
+        meters: {
+          ac: ["219 V AC", "ok"],
+          comm: ["Oscilando OK", "ok"],
+          dcbus: ["335 V DC (PFC)", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["35 Hz · ~95V~", "ok"],
+          amp: ["3.4 A", "ok"]
+        },
+        labels: {
+          breaker: "ON — 219V AC",
+          pcbIn: "TX/RX ACTIVO",
+          fanIn: "1050 RPM",
+          swing: "Abierto",
+          display: "22°C FRÍO",
+          ntcIn: "Pozo: 11°C",
+          ptc: "• Relé ON + PFC",
+          dcbus: "Bus DC: 335V (PFC)",
+          ipm: "MODULANDO PWM",
+          comp: "35 Hz (Rampa)",
+          fanExt: "650 RPM (BLDC)",
+          way4: "Modo Frío (0V)",
+          eev: "Regulando pulsos",
+          ground: "Descarga EMI OK",
+          ntcExt: "Desc: 54°C OK"
+        },
+        activeBlocks: ["breaker", "bornera", "pcbIn", "fanIn", "swing", "display", "ntcIn", "powerExt", "ipm", "comp", "fanExt", "way4", "eev", "ground", "ntcExt"],
+        activeWires: ["acIn", "acExt", "dcbus", "comm", "uvw", "indoorLoads", "extLoads"],
+        flowWires: ["acIn", "acExt", "dcbus", "comm", "uvw", "indoorLoads", "extLoads"],
+        spinIn: true,
+        spinComp: "spin-slow"
+      },
+      {
+        title: "Paso 5: Régimen Nominal / Modulación Inverter (12,000 BTU)",
+        code: "INVERTER OK",
+        tone: "ok",
+        what: "El compresor opera a plena capacidad (60–85 Hz, ~5.5A) hasta enfriar la habitación, y luego reduce su frecuencia (~25–35 Hz, ~2.0A) para mantener la temperatura sin apagar el compresor. Máxima eficiencia y estabilidad térmica.",
+        diag: "Operación óptima: las 3 fases U-V-W equilibradas, Bus DC estable (~310–380V DC según PFC), descarga del compresor <95°C y línea S comunicando sin errores.",
+        meters: {
+          ac: ["218 V AC", "ok"],
+          comm: ["Oscilando OK", "ok"],
+          dcbus: ["365 V DC (PFC)", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["72 Hz · ~165V~", "ok"],
+          amp: ["5.4 A", "ok"]
+        },
+        labels: {
+          breaker: "ON — 218V AC",
+          pcbIn: "MODO INVERTER",
+          fanIn: "1100 RPM",
+          swing: "Abierto",
+          display: "22°C FRÍO",
+          ntcIn: "Pozo: 6°C OK",
+          ptc: "• Relé ON + PFC",
+          dcbus: "Bus DC: 365V (PFC)",
+          ipm: "PWM 72 Hz OK",
+          comp: "72 Hz (Nominal)",
+          fanExt: "880 RPM (BLDC)",
+          way4: "Modo Frío (0V)",
+          eev: "Sobrecalent. OK",
+          ground: "Descarga EMI OK",
+          ntcExt: "Desc: 74°C OK"
+        },
+        activeBlocks: ["breaker", "bornera", "pcbIn", "fanIn", "swing", "display", "ntcIn", "powerExt", "ipm", "comp", "fanExt", "way4", "eev", "ground", "ntcExt"],
+        activeWires: ["acIn", "acExt", "dcbus", "comm", "uvw", "indoorLoads", "extLoads"],
+        flowWires: ["acIn", "acExt", "dcbus", "comm", "uvw", "indoorLoads", "extLoads"],
+        spinIn: true,
+        spinComp: "spin-fast"
+      }
+    ];
+
+    const FAULTS = {
+      comm_open: {
+        title: "Falla 1: Error de Comunicación (E1 / E6) — Línea S interrumpida",
+        code: "E1 / E6",
+        tone: "err",
+        what: "La evaporadora enciende y gira su turbina, pero el cable S está cortado, sulfatado, mal conectado en bornera o falló el circuito optoacoplador (TX/RX) / diodo zener de comunicación. La tarjeta exterior nunca recibe la orden de arranque y el compresor queda detenido.",
+        diag: "Mide voltaje DC entre 2(N) y S: si marca 0V fijo o un voltaje estático sin oscilar, desconecta el cable S en la bornera exterior y prueba si el pulso sale desde la unidad interior para aislar qué placa o cable falló.",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["0 V (Sin pulso)", "err"],
+          dcbus: ["310 V DC", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["0 Hz / 0V", "off"],
+          amp: ["0.25 A", "warn"]
+        },
+        labels: {
+          breaker: "ON — 220V AC",
+          pcbIn: "ERROR E1 (Sin RX)",
+          fanIn: "800 RPM -> Para",
+          swing: "Abierto",
+          display: "ERROR E1 / E6",
+          ntcIn: "10 kΩ OK",
+          ptc: "• Precarga: PTC",
+          dcbus: "Bus DC: 310V",
+          ipm: "Sin señal S",
+          comp: "0 Hz (Detenido)",
+          fanExt: "0 RPM",
+          way4: "0V",
+          eev: "Cerrada",
+          ground: "OK",
+          ntcExt: "OK"
+        },
+        faultBlocks: ["bornera"],
+        activeBlocks: ["breaker", "pcbIn", "fanIn", "display", "powerExt", "ipm"],
+        activeWires: ["acIn", "acExt", "dcbus", "indoorLoads"],
+        flowWires: ["acIn", "acExt"],
+        spinIn: true,
+        spinComp: ""
+      },
+      ext_dead: {
+        title: "Falla 2: Placa Exterior Muerta — Fusible 20A abierto / Varistor MOV en corto",
+        code: "EXT OFF / E1",
+        tone: "err",
+        what: "Tras un pico de tensión, el varistor MOV de entrada se puso en corto y abrió el fusible cerámico de 20A en la condensadora. La unidad interior funciona normalmente durante 2–3 minutos y luego arroja error E1/E6 por falta de respuesta del exterior.",
+        diag: "Mide 220V AC en los bornes 1–2 de la unidad exterior: hay voltaje en bornera, pero 0V DC en los capacitores del Bus DC y 0V en la fuente SMPS exterior. Revisa fusible 20A, MOV y puente rectificador.",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["Solo TX Int.", "warn"],
+          dcbus: ["0 V DC (Abierto)", "err"],
+          smps: ["0V / 0V (Muerta)", "err"],
+          uvw: ["0 Hz / 0V", "off"],
+          amp: ["0.22 A", "warn"]
+        },
+        labels: {
+          breaker: "ON — 220V AC",
+          pcbIn: "TX sin respuesta",
+          fanIn: "800 RPM",
+          swing: "Abierto",
+          display: "ERROR E1 (Timeout)",
+          ntcIn: "10 kΩ OK",
+          ptc: "• FUSIBLE 20A ABIERTO",
+          dcbus: "Bus DC: 0V (!)",
+          ipm: "SIN ALIMENTACIÓN",
+          comp: "0 Hz",
+          fanExt: "0 RPM",
+          way4: "0V",
+          eev: "0V",
+          ground: "OK",
+          ntcExt: "Sin lectura"
+        },
+        faultBlocks: ["powerExt"],
+        activeBlocks: ["breaker", "bornera", "pcbIn", "fanIn", "display"],
+        activeWires: ["acIn", "indoorLoads"],
+        flowWires: ["acIn"],
+        spinIn: true,
+        spinComp: ""
+      },
+      ptc_relay: {
+        title: "Falla 3: Resistencia PTC abierta o Relé de Precarga no cierra",
+        code: "P1 / E5 / DC LOW",
+        tone: "err",
+        what: "Si la PTC se abre, el Bus DC queda en 0V en Stand-by. Si la PTC carga el bus a 310V pero el Relé de Precarga no cierra al arrancar el compresor, toda la corriente pasa por la PTC: la resistencia se calienta, sube su resistencia y el Bus DC cae bruscamente apagando el IPM.",
+        diag: "Mide el Bus DC mientras intenta arrancar el compresor: si cae de 310V DC a <220V DC justo al iniciar la rampa, revisa la bobina de 12V y los contactos del Relé de Precarga junto a la PTC.",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["Com. OK -> Corte", "warn"],
+          dcbus: ["Cae <190 V DC (!)", "err"],
+          smps: ["15V / 5V cae", "warn"],
+          uvw: ["Corta en arranque", "err"],
+          amp: ["0.5 A (Cae)", "warn"]
+        },
+        labels: {
+          breaker: "ON — 220V AC",
+          pcbIn: "PROTECCIÓN DC",
+          fanIn: "850 RPM",
+          swing: "Abierto",
+          display: "ERROR P1 / E5",
+          ntcIn: "OK",
+          ptc: "• FALLA RELÉ / PTC (!)",
+          dcbus: "Bus DC: Cae <190V",
+          ipm: "Bloqueo bajo voltaje",
+          comp: "Intenta y corta",
+          fanExt: "Para",
+          way4: "0V",
+          eev: "Cierra",
+          ground: "OK",
+          ntcExt: "OK"
+        },
+        faultBlocks: ["powerExt"],
+        activeBlocks: ["breaker", "bornera", "pcbIn", "fanIn", "display", "ipm"],
+        activeWires: ["acIn", "acExt", "comm"],
+        flowWires: ["acIn"],
+        spinIn: true,
+        spinComp: ""
+      },
+      ipm_short: {
+        title: "Falla 4: Módulo IPM en Cortocircuito (IGBTs quemados)",
+        code: "FO / P4 / TRIP",
+        tone: "err",
+        what: "Uno o más de los 6 IGBTs internos del Módulo IPM se pusieron en corto entre el Bus DC (+310V/GND) y las fases U, V o W. Al intentar modular (o incluso al subir el breaker si es corto franco), dispara el breaker termomagnético o bloquea con error de sobrecorriente (FO / P4).",
+        diag: "CON EQUIPO DESCONECTADO y Bus DC <5V: pon el multímetro en prueba de DIODOS y mide entre (+310V) y U, V, W; luego entre (GND) y U, V, W. Debes leer ~0.40–0.60V en un sentido y OL en el otro. Si marca 0.00V (pitido), el IPM está dañado.",
+        meters: {
+          ac: ["Dispara Breaker / 220V", "err"],
+          comm: ["Bloqueado", "warn"],
+          dcbus: ["Corto en Bus / Cae", "err"],
+          smps: ["15V en corto/cae", "err"],
+          uvw: ["Desbalance / Corto", "err"],
+          amp: [">15 A (Pico Trip)", "err"]
+        },
+        labels: {
+          breaker: "DISPARO / SOBRECORR.",
+          pcbIn: "ALARMA IPM",
+          fanIn: "Detenida",
+          swing: "Abierto",
+          display: "ERROR FO / P4",
+          ntcIn: "OK",
+          ptc: "• Sobrecarga en Bus",
+          dcbus: "Corto en salida IPM",
+          ipm: "IPM EN CORTO (!)",
+          comp: "Bloqueado (0 Hz)",
+          fanExt: "Detenido",
+          way4: "0V",
+          eev: "Cerrada",
+          ground: "OK",
+          ntcExt: "OK"
+        },
+        faultBlocks: ["ipm"],
+        activeBlocks: ["breaker", "bornera", "pcbIn", "powerExt", "display"],
+        activeWires: ["acIn", "acExt", "dcbus"],
+        flowWires: [],
+        spinIn: false,
+        spinComp: ""
+      },
+      ntc_fault: {
+        title: "Falla 5: Sensor NTC abierto o desvalorizado (Pozo / Descarga 50kΩ)",
+        code: "E2 / E3 / F1 / F3",
+        tone: "warn",
+        what: "Un termistor NTC tiene el cable mordido, sulfatado o su resistencia interna se alteró. Si falla el de pozo interior o el de descarga exterior (50kΩ @ 25°C), el MCU interpreta falsa congelación o sobretemperatura (>115°C) e impide el arranque del compresor.",
+        diag: "Desconecta el sensor de la placa y mídelo en ohmios (kΩ) a temperatura ambiente (~25°C). Compáralo contra tabla (usualmente 5kΩ o 10kΩ para ambiente/pozo/serpentín y 50kΩ para descarga). Si marca OL (abierto) o 0Ω (corto), reemplázalo.",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["Com. S OK", "ok"],
+          dcbus: ["310 V DC", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["0 Hz (Bloqueado)", "warn"],
+          amp: ["0.30 A", "warn"]
+        },
+        labels: {
+          breaker: "ON — 220V AC",
+          pcbIn: "SENSOR FUERA RANGO",
+          fanIn: "Baja RPM / Para",
+          swing: "Abierto",
+          display: "ERROR E2 / F1 / F3",
+          ntcIn: "Revisar kΩ (!)",
+          ptc: "• Precarga: OK",
+          dcbus: "Bus DC: 310V",
+          ipm: "Inhibido por NTC",
+          comp: "0 Hz (Protegido)",
+          fanExt: "0 RPM",
+          way4: "0V",
+          eev: "Cerrada",
+          ground: "OK",
+          ntcExt: "NTC ABIERTO / CORTO (!)"
+        },
+        faultBlocks: ["ntcExt", "ntcIn"],
+        activeBlocks: ["breaker", "bornera", "pcbIn", "display", "powerExt", "ipm"],
+        activeWires: ["acIn", "acExt", "dcbus", "comm"],
+        flowWires: ["acIn", "acExt", "comm"],
+        spinIn: false,
+        spinComp: ""
+      },
+      comp_fault: {
+        title: "Falla 6: Compresor Inverter aterrizado o bobina desequilibrada",
+        code: "P4 / H5 / TRIP",
+        tone: "err",
+        what: "El compresor tiene una bobina quemada/abierta o pérdida de aislamiento hacia la carcasa (tierra). Al recibir los primeros pulsos del IPM, se dispara la protección por desbalance de fases o salta el breaker por fuga a tierra.",
+        diag: "Desconecta el conector U-V-W del compresor: 1) Mide ohmios entre U-V, V-W y U-W (deben ser idénticos, ej. 1.6Ω / 1.6Ω / 1.6Ω). 2) Mide aislamiento entre cada borne y un tubo de cobre limpio (debe dar >20 MΩ con megóhmetro).",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["Com. S OK", "ok"],
+          dcbus: ["310 V DC", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["Desbalance / Trip", "err"],
+          amp: ["Pico >12 A -> Corta", "err"]
+        },
+        labels: {
+          breaker: "ON (Posible Trip)",
+          pcbIn: "PROTECCIÓN COMP.",
+          fanIn: "850 RPM",
+          swing: "Abierto",
+          display: "ERROR P4 / H5",
+          ntcIn: "OK",
+          ptc: "• Relé ON",
+          dcbus: "Bus DC: 310V",
+          ipm: "Corte por sobrecorr.",
+          comp: "BOBINA / TIERRA (!)",
+          fanExt: "Para por alarma",
+          way4: "0V",
+          eev: "Cerrada",
+          ground: "Fuga a tierra (!)",
+          ntcExt: "OK"
+        },
+        faultBlocks: ["comp"],
+        activeBlocks: ["breaker", "bornera", "pcbIn", "powerExt", "ipm", "display"],
+        activeWires: ["acIn", "acExt", "dcbus", "comm", "uvw"],
+        flowWires: ["acIn", "acExt"],
+        spinIn: false,
+        spinComp: ""
+      },
+      fan_fault: {
+        title: "Falla 7: Motor Ventilador BLDC sin retorno de velocidad (FG / PG)",
+        code: "E3 / F6 / H6",
+        tone: "warn",
+        what: "El ventilador está atascado (rodamiento/capacitor) o su sensor Hall interno (FG/PG) dejó de enviar pulsos de RPM al microcontrolador. El equipo enciende el motor ~30 segundos, no detecta giro y apaga el compresor para evitar congelamiento o alta presión.",
+        diag: "En motor BLDC de 5 hilos (con equipo energizado y cuidado): mide Pin 1–3 (~310V DC), Pin 4 (15V DC), Pin 5 (Vsp: 1.5–5V según velocidad) y Pin 6 (FG: pulsos al girar con la mano). Si los voltajes llegan pero no gira o no hay FG, el motor está dañado.",
+        meters: {
+          ac: ["220 V AC", "ok"],
+          comm: ["Com. S OK", "ok"],
+          dcbus: ["310 V DC", "ok"],
+          smps: ["15V / 5V OK", "ok"],
+          uvw: ["0 Hz (Bloqueado)", "warn"],
+          amp: ["0.30 A", "warn"]
+        },
+        labels: {
+          breaker: "ON — 220V AC",
+          pcbIn: "SIN PULSO PG/FG",
+          fanIn: "BLOQUEADO (!)",
+          swing: "Abierto",
+          display: "ERROR E3 / H6",
+          ntcIn: "OK",
+          ptc: "• Relé ON",
+          dcbus: "Bus DC: 310V",
+          ipm: "Espera ventilador",
+          comp: "0 Hz (Detenido)",
+          fanExt: "SIN SEÑAL FG (!)",
+          way4: "0V",
+          eev: "Cerrada",
+          ground: "OK",
+          ntcExt: "OK"
+        },
+        faultBlocks: ["fanExt", "fanIn"],
+        activeBlocks: ["breaker", "bornera", "pcbIn", "display", "powerExt", "ipm"],
+        activeWires: ["acIn", "acExt", "dcbus", "comm"],
+        flowWires: ["acIn", "acExt", "comm"],
+        spinIn: false,
+        spinComp: ""
+      },
+      low_volt: {
+        title: "Falla 8: Baja Tensión de Red (<180V AC) o Falta de Tierra Física (PE)",
+        code: "P1 / U2 / EMI",
+        tone: "warn",
+        what: "Si la red cae por debajo de ~185V AC (cables muy delgados o red deficiente), el Bus DC desciende bajo ~250V DC al exigir potencia al compresor, disparando protección de bajo voltaje. Además, sin Tierra Física (PE), los capacitores del filtro EMI inducen ~110V de estática en el chasis.",
+        diag: "Mide voltaje AC en bornera 1–2 CON EL COMPRESOR ARRANCANDO (bajo carga, no en vacío). Verifica también que exista puesta a tierra real (<5V AC entre Neutro y Tierra).",
+        meters: {
+          ac: ["172 V AC (Baja!)", "err"],
+          comm: ["Inestable / Ruido", "warn"],
+          dcbus: ["235 V DC (Bajo!)", "err"],
+          smps: ["15V / 5V límite", "warn"],
+          uvw: ["Corta frecuencia", "warn"],
+          amp: ["6.8 A (Alta!)", "err"]
+        },
+        labels: {
+          breaker: "CAÍDA TENSIÓN (172V)",
+          pcbIn: "BAJO VOLTAJE",
+          fanIn: "750 RPM",
+          swing: "Abierto",
+          display: "ERROR P1 / U2",
+          ntcIn: "OK",
+          ptc: "• Alto consumo AC",
+          dcbus: "Bus DC: 235V (!)",
+          ipm: "Limita / Corta",
+          comp: "Baja RPM / Para",
+          fanExt: "600 RPM",
+          way4: "0V",
+          eev: "Abierta",
+          ground: "SIN TIERRA PE (!)",
+          ntcExt: "OK"
+        },
+        faultBlocks: ["breaker", "ground"],
+        activeBlocks: ["breaker", "bornera", "pcbIn", "fanIn", "display", "powerExt", "ipm"],
+        activeWires: ["acIn", "acExt", "dcbus", "comm"],
+        flowWires: ["acIn", "acExt"],
+        spinIn: true,
+        spinComp: ""
+      }
+    };
+
+    let currentStep = 0;
+    let currentFault = "none";
+    let playTimer = null;
+
+    const els = {
+      stepPills: document.querySelectorAll(".step-pill"),
+      stepCounter: document.getElementById("step-counter"),
+      faultSelect: document.getElementById("fault-select"),
+      btnPrev: document.getElementById("btn-prev"),
+      btnNext: document.getElementById("btn-next"),
+      btnPlay: document.getElementById("btn-play"),
+      btnReset: document.getElementById("btn-reset"),
+      themeToggle: document.getElementById("theme-toggle"),
+      badgeMode: document.getElementById("badge-mode"),
+      statusBanner: document.getElementById("status-banner"),
+      statusTitle: document.getElementById("status-title"),
+      statusCode: document.getElementById("status-code"),
+      txtWhat: document.getElementById("txt-what"),
+      txtDiag: document.getElementById("txt-diag"),
+      meters: {
+        ac: document.getElementById("m-ac"),
+        comm: document.getElementById("m-comm"),
+        dcbus: document.getElementById("m-dcbus"),
+        smps: document.getElementById("m-smps"),
+        uvw: document.getElementById("m-uvw"),
+        amp: document.getElementById("m-amp")
+      },
+      blocks: {
+        breaker: document.getElementById("blk-breaker"),
+        bornera: document.getElementById("blk-bornera"),
+        pcbIn: document.getElementById("blk-pcb-in"),
+        fanIn: document.getElementById("blk-fan-in"),
+        swing: document.getElementById("blk-swing"),
+        display: document.getElementById("blk-display"),
+        ntcIn: document.getElementById("blk-ntc-in"),
+        powerExt: document.getElementById("blk-power-ext"),
+        ipm: document.getElementById("blk-ipm"),
+        comp: document.getElementById("blk-comp"),
+        fanExt: document.getElementById("blk-fan-ext"),
+        way4: document.getElementById("blk-4way"),
+        eev: document.getElementById("blk-eev"),
+        ground: document.getElementById("blk-ground"),
+        ntcExt: document.getElementById("blk-ntc-ext")
+      },
+      wires: {
+        acIn: document.getElementById("w-ac-in"),
+        acExt: document.getElementById("w-ac-ext"),
+        dcbus: document.getElementById("w-dcbus"),
+        comm: document.getElementById("w-comm"),
+        uvw: document.getElementById("w-uvw"),
+        indoorLoads: document.getElementById("w-indoor-loads"),
+        extLoads: document.getElementById("w-ext-loads")
+      },
+      labels: {
+        breaker: document.getElementById("lbl-breaker"),
+        pcbIn: document.getElementById("lbl-pcb-in"),
+        fanIn: document.getElementById("lbl-fan-in"),
+        swing: document.getElementById("lbl-swing"),
+        display: document.getElementById("lbl-display"),
+        ntcIn: document.getElementById("lbl-ntc-in"),
+        ptc: document.getElementById("lbl-ptc"),
+        dcbus: document.getElementById("lbl-dcbus"),
+        ipm: document.getElementById("lbl-ipm"),
+        comp: document.getElementById("lbl-comp"),
+        fanExt: document.getElementById("lbl-fan-ext"),
+        way4: document.getElementById("lbl-4way"),
+        eev: document.getElementById("lbl-eev"),
+        ground: document.getElementById("lbl-ground"),
+        ntcExt: document.getElementById("lbl-ntc-ext")
+      },
+      compRotor: document.getElementById("comp-rotor")
+    };
+
+    function applyState(state, isFault) {
+      // Actualizar multímetro
+      Object.keys(els.meters).forEach(k => {
+        const [val, cls] = state.meters[k];
+        els.meters[k].textContent = val;
+        els.meters[k].className = "meter-val " + cls;
+      });
+
+      // Actualizar textos SVG
+      Object.keys(els.labels).forEach(k => {
+        if (state.labels[k] !== undefined) {
+          els.labels[k].textContent = state.labels[k];
+        }
+      });
+
+      // Actualizar bloques
+      const faultList = state.faultBlocks || [];
+      Object.keys(els.blocks).forEach(k => {
+        const el = els.blocks[k];
+        el.classList.remove("block-on", "block-off", "block-fault");
+        if (faultList.includes(k)) {
+          el.classList.add("block-on", "block-fault");
+        } else if (state.activeBlocks.includes(k)) {
+          el.classList.add("block-on");
+        } else {
+          el.classList.add("block-off");
+        }
+      });
+
+      // Actualizar cables y flujo animado
+      Object.keys(els.wires).forEach(k => {
+        const el = els.wires[k];
+        el.classList.remove("wire-on", "wire-off");
+        el.querySelectorAll("path").forEach(p => p.classList.remove("wire-flow", "wire-flow-fast"));
+
+        if (state.activeWires.includes(k)) {
+          el.classList.add("wire-on");
+          if (state.flowWires.includes(k)) {
+            const cls = (k === "uvw" || k === "comm") ? "wire-flow-fast" : "wire-flow";
+            el.querySelectorAll("path").forEach(p => p.classList.add(cls));
+          }
+        } else {
+          el.classList.add("wire-off");
+        }
+      });
+
+      // Animación rotor compresor
+      els.compRotor.classList.remove("spin-slow", "spin-fast");
+      if (state.spinComp) {
+        els.compRotor.classList.add(state.spinComp);
+      }
+
+      // Panel análisis
+      els.statusBanner.className = "status-banner " + state.tone;
+      els.statusTitle.textContent = state.title;
+      els.statusCode.textContent = state.code;
+      els.txtWhat.textContent = state.what;
+      els.txtDiag.textContent = state.diag;
+
+      if (isFault) {
+        els.badgeMode.textContent = "FALLA INYECTADA";
+        els.badgeMode.style.color = "var(--error)";
+      } else {
+        els.badgeMode.textContent = "MODO NORMAL";
+        els.badgeMode.style.color = "var(--success)";
+      }
+    }
+
+    function render() {
+      els.stepCounter.textContent = `Paso ${currentStep} / ${STEPS.length - 1}`;
+      els.stepPills.forEach(p => {
+        const s = Number(p.dataset.step);
+        p.classList.remove("active", "done");
+        if (currentFault === "none") {
+          if (s === currentStep) p.classList.add("active");
+          else if (s < currentStep) p.classList.add("done");
+        }
+      });
+
+      els.btnPrev.disabled = (currentFault !== "none" || currentStep === 0);
+      els.btnNext.disabled = (currentFault !== "none" || currentStep === STEPS.length - 1);
+
+      if (currentFault !== "none") {
+        applyState(FAULTS[currentFault], true);
+      } else {
+        applyState(STEPS[currentStep], false);
+      }
+    }
+
+    function stopAutoPlay() {
+      if (playTimer) {
+        clearInterval(playTimer);
+        playTimer = null;
+        els.btnPlay.textContent = "▶ Simular Arranque Automático";
+      }
+    }
+
+    els.stepPills.forEach(p => {
+      p.addEventListener("click", () => {
+        stopAutoPlay();
+        currentFault = "none";
+        els.faultSelect.value = "none";
+        currentStep = Number(p.dataset.step);
+        render();
+      });
+    });
+
+    els.btnPrev.addEventListener("click", () => {
+      stopAutoPlay();
+      if (currentStep > 0) {
+        currentStep--;
+        render();
+      }
+    });
+
+    els.btnNext.addEventListener("click", () => {
+      stopAutoPlay();
+      if (currentStep < STEPS.length - 1) {
+        currentStep++;
+        render();
+      }
+    });
+
+    els.btnReset.addEventListener("click", () => {
+      stopAutoPlay();
+      currentFault = "none";
+      els.faultSelect.value = "none";
+      currentStep = 0;
+      render();
+    });
+
+    els.btnPlay.addEventListener("click", () => {
+      if (playTimer) {
+        stopAutoPlay();
+        return;
+      }
+      currentFault = "none";
+      els.faultSelect.value = "none";
+      if (currentStep >= STEPS.length - 1) currentStep = 0;
+      render();
+      els.btnPlay.textContent = "⏸ Pausar Simulación";
+      playTimer = setInterval(() => {
+        if (currentStep < STEPS.length - 1) {
+          currentStep++;
+          render();
+        } else {
+          stopAutoPlay();
+        }
+      }, 2400);
+    });
+
+    els.faultSelect.addEventListener("change", () => {
+      stopAutoPlay();
+      currentFault = els.faultSelect.value;
+      render();
+    });
+
+    els.themeToggle.addEventListener("click", () => {
+      const root = document.documentElement;
+      const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      els.themeToggle.textContent = next === "dark" ? "☀️ Modo Claro" : "🌙 Modo Oscuro";
+    });
+
+    render();
+  </script>
+</body>
+</html>
